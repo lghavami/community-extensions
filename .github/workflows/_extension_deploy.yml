@@ -112,9 +112,10 @@ jobs:
           path: duckdb
           fetch-depth: 0
 
+      # extension-ci-tools' build.yml uploads one '<group>-extensions-<arch>' artifact in extension repository layout
       - uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}${{startsWith(matrix.duckdb, 'wasm') && '.wasm' || ''}}
+          name: main-extensions-${{ matrix.duckdb_arch }}
           path: |
             /tmp/extension
 
@@ -142,7 +143,12 @@ jobs:
             cd ..
           fi
           export EXT_VERSION="unversioned"
-          "${{ inputs.deploy_script }}" "${{ inputs.extension_name }}" "$EXT_VERSION" "$DUCKDB_VERSION" "${{ matrix.duckdb_arch }}" "$BUCKET_NAME" "${{inputs.deploy_latest || 'true' && 'false'}}" "${{inputs.deploy_versioned || 'true' && 'false'}}"
+          EXT_FILE=`find /tmp/extension -path '*/test-support/*' -prune -o -type f \( -name "${{ inputs.extension_name }}.duckdb_extension" -o -name "${{ inputs.extension_name }}.duckdb_extension.wasm" \) -print`
+          if [ `echo "$EXT_FILE" | grep -c .` != "1" ]; then
+            echo "Expected exactly one ${{ inputs.extension_name }} binary in the artifact, found: '$EXT_FILE'"
+            exit 1
+          fi
+          "${{ inputs.deploy_script }}" "${{ inputs.extension_name }}" "$EXT_VERSION" "$DUCKDB_VERSION" "${{ matrix.duckdb_arch }}" "$BUCKET_NAME" "${{inputs.deploy_latest || 'true' && 'false'}}" "${{inputs.deploy_versioned || 'true' && 'false'}}" "`dirname "$EXT_FILE"`"
 
   clean_cache:
     needs:

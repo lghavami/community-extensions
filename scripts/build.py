@@ -77,3 +77,17 @@ with open('env.sh', 'w+') as hdl:
 	if test_config:
 		escaped_config =test_config.replace("\n", "")
 		hdl.write(f"COMMUNITY_EXTENSION_TEST_CONFIG={escaped_config}\n")
+
+	# extension-ci-tools' build.yml takes a single group; the base toolchain selects the Linux build image
+	toolchains = [t.strip() for t in str(requires_toolchains or '').split(';') if t.strip()]
+	if 'rust' in toolchains:
+		toolchain = 'rust'
+	elif 'cuda' in toolchains:
+		toolchain = 'cuda13'
+	else:
+		toolchain = 'main'
+	extra_toolchains = ';'.join(t for t in toolchains if t not in ('rust', 'cuda'))
+	groups = f"main:\n  config: extension_config.cmake\n  toolchain: {toolchain}\n"
+	if extra_toolchains:
+		groups += f"  extra_toolchains: '{extra_toolchains}'\n"
+	hdl.write(f"COMMUNITY_EXTENSION_BUILD_GROUPS<<EOF\n{groups}EOF\n")
